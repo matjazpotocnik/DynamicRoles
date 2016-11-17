@@ -1,4 +1,13 @@
-<?php
+<?php namespace ProcessWire;
+
+/*
+ * Added namespace and these: 
+ *
+ * https://github.com/ryancramerdesign/DynamicRoles/pull/18/commits/f4e9e668c621e4f2254e26a0a5a8706c5277d571
+ * https://github.com/LostKobrakai/DynamicRoles/commit/5548722a566f7e4e23d326bd64a0783098b67108
+ * https://github.com/ryancramerdesign/DynamicRoles/commit/915794bb169fb48a14118c5c72533f3605845f3e
+ *
+*/
 
 /**
  * Dynamic Role Support
@@ -74,7 +83,9 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 			$droles = array();
 		}
 
+		// https://github.com/ryancramerdesign/DynamicRoles/issues/16
 		$user = $this->wire('user'); 
+		//$user = $event->object;
 
 		if(count($droles) && $user->isLoggedin() && !$user->isSuperuser()) { 
 			$userDroles = $user->getUnformatted('droles'); 
@@ -87,7 +98,9 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 			}
 		}
 
-		$this->pages->addHookAfter('saved', $this, 'hookPagesSaved'); 
+		$this->pages->addHookAfter('saved', $this, 'hookPagesSaved');
+		// https://github.com/LostKobrakai/DynamicRoles/commit/5548722a566f7e4e23d326bd64a0783098b67108
+		$this->pages->addHookAfter('added', $this, 'hookPagesAdded'); 
 		$this->pages->addHookAfter('deleted', $this, 'hookPagesDeleted'); 
 
 	}
@@ -209,7 +222,7 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 
 	/**
 	 * Hook to Pages::find
- 	 *
+	 *
 	 * Automatically set a special viewable and editable status (_drole_viewable, _drole_editable) 
 	 * for results returned from selectors we've manipulated. This prevents us
 	 * from having to perform additional queries to determine viewable access later.
@@ -455,7 +468,7 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 
 	/**
 	 * Hook to Pages::saved
- 	 *
+	 *
 	 */
 	public function hookPagesSaved($event) {
 
@@ -475,8 +488,20 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 	}
 
 	/**
+	 * Hook to Pages::added
+	 *
+	 */
+	public function hookPagesAdded($event) {
+
+		// https://github.com/LostKobrakai/DynamicRoles/commit/5548722a566f7e4e23d326bd64a0783098b67108
+		$page = $event->arguments(0); 
+		$this->rebuildForPage($page); 
+
+	}
+
+	/**
 	 * Hook to Pages::deleted
- 	 *
+	 *
 	 */
 	public function hookPagesDeleted($event) {
 
@@ -527,18 +552,26 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 			$query->execute();
 		}
 
+		// https://github.com/LostKobrakai/DynamicRoles/commit/f4e9e668c621e4f2254e26a0a5a8706c5277d571
+		// https://github.com/ryancramerdesign/DynamicRoles/pull/18/commits/f4e9e668c621e4f2254e26a0a5a8706c5277d571
+		// We're not interested in any process related permissions
+		$tempProcess = $page->process;
+		$page->process = null;
+
 		$guest = $this->wire('users')->get('guest'); 
 		$guestViewable = $page->viewable($guest); 
 
 		foreach($this->wire('droles') as $drole) {
 
-			$editable = false;	
+			$editable = false; 
 			$addable = false; 
 			$viewable = $guestViewable; 
 
 			if(!$viewable) foreach($this->getPageValue($drole, self::fieldNameView) as $selectorString) {
-				$p = $this->wire('pages')->get("$selectorString, id=$page->id"); 
-				if($p->id == $page->id) {
+				// https://github.com/ryancramerdesign/DynamicRoles/commit/915794bb169fb48a14118c5c72533f3605845f3e
+				// $p = $this->wire('pages')->get("$selectorString, id=$page->id"); 
+				// if($p->id == $page->id) {
+				if($this->wire('pages')->count("id=$page->id, $selectorString") == 1) {
 					$viewable = true; 
 					$this->message("Viewable to dynamic role: $drole->name", Notice::debug); 
 					break;
@@ -548,27 +581,39 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 			if($drole->hasEditPermission()) {
 
 				foreach($this->getPageValue($drole, self::fieldNameEdit) as $selectorString) {
-					$p = $this->wire('pages')->get("id=$page->id, $selectorString"); 
-					if($p->id == $page->id) {
+					// https://github.com/ryancramerdesign/DynamicRoles/commit/915794bb169fb48a14118c5c72533f3605845f3e
+					// $p = $this->wire('pages')->get("id=$page->id, $selectorString"); 
+					// if($p->id == $page->id) {
+					if($this->wire('pages')->count("id=$page->id, $selectorString") == 1) {
 						$editable = true;
 						$this->message("Editable to dynamic role: $drole->name", Notice::debug); 
 						break;
-					} else if($this->wire('user')->id == $page->modified_users_id) {
+						
+					// https://github.com/LostKobrakai/DynamicRoles/commit/71f70bfa612c05a32d1a07f8e9b5d2a10f0c65d8
+					// https://github.com/ryancramerdesign/DynamicRoles/pull/17/commits/71f70bfa612c05a32d1a07f8e9b5d2a10f0c65d8
+					} else if(!$this->wire('user')->isSuperuser() && $this->wire('user')->id == $page->modified_users_id) {
 						// if user last modified the page, let them continue editing even if it doesn't yet match
+						// exclude superusers as their saves would make the page auto visible / editable to all droles which can edit something
 						$editable = true;
 						break;
 					}
 				}
 
 				foreach($this->getPageValue($drole, self::fieldNameAdd) as $selectorString) {
-					$p = $this->wire('pages')->get("id=$page->id, $selectorString"); 
-					if($p->id == $page->id) {
+					// https://github.com/ryancramerdesign/DynamicRoles/commit/915794bb169fb48a14118c5c72533f3605845f3e
+					// $p = $this->wire('pages')->get("id=$page->id, $selectorString"); 
+					// if($p->id == $page->id) {
+					if($this->wire('pages')->count("id=$page->id, $selectorString") == 1) {
 						$addable = true;
 						$this->message("Addable to dynamic role: $drole->name", Notice::debug); 
 						break;
 					}
 				}
 			}
+
+			// https://github.com/LostKobrakai/DynamicRoles/commit/f4e9e668c621e4f2254e26a0a5a8706c5277d571
+			// Reset nullified process for page
+			$page->process = $tempProcess;
 
 			// if something is editable, it must also be viewable
 			if(($editable || $addable) && !$viewable) $viewable = true; 
@@ -589,7 +634,7 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 	 * Rebuild the table data for a given drole
 	 *
 	 * @todo split this into two separate functions to rebuild view or edit tables separately according to what changed. 
- 	 *
+	 *
 	 */
 	protected function rebuildTableData(Page $drole) {
 
@@ -854,7 +899,7 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 				$this->error($e->getMessage()); 
 			}
 		}
-
+		
 		try {
 			foreach(array(self::tableNameView, self::tableNameEdit, self::tableNameAdd) as $t) {
 				$this->wire('database')->exec("DROP TABLE $t"); 
