@@ -1,7 +1,7 @@
 <?php namespace ProcessWire;
 
 /*
- * Added namespace and these: 
+ * Added namespace and these:
  *
  * https://github.com/ryancramerdesign/DynamicRoles/pull/18/commits/f4e9e668c621e4f2254e26a0a5a8706c5277d571
  * https://github.com/LostKobrakai/DynamicRoles/commit/5548722a566f7e4e23d326bd64a0783098b67108
@@ -16,7 +16,7 @@
  * Concept: Antti Peisa
  * Code: Ryan Cramer
  *
- */ 
+ */
 
 class DynamicRoleSupport extends WireData implements Module, ConfigurableModule {
 
@@ -27,18 +27,18 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 	const tableNameView = 'pages_access_droles';
 	const tableNameEdit = 'pages_access_droles_edit';
 	const tableNameAdd = 'pages_access_droles_add';
-	const fieldNameUser = 'drole_user_selector'; 
-	const fieldNameView = 'drole_view_selector'; 
-	const fieldNameEdit = 'drole_edit_selector'; 
-	const fieldNameAdd = 'drole_add_selector'; 
+	const fieldNameUser = 'drole_user_selector';
+	const fieldNameView = 'drole_view_selector';
+	const fieldNameEdit = 'drole_edit_selector';
+	const fieldNameAdd = 'drole_add_selector';
 	const viewableKey = '_drole_viewable';
 	const editableKey = '_drole_editable';
 	const addableKey = '_drole_addable';
-	const editPermissionID = 32; 
-	const viewPermissionID = 36; 
-	const debug = false; 
+	const editPermissionID = 32;
+	const viewPermissionID = 36;
+	const debug = false;
 	const debugLogName = 'dynamic-roles-debug';
-	const maxMultiplier = 3; 
+	const maxMultiplier = 3;
 
 	/**
 	 * array of selector string => Selectors object
@@ -46,7 +46,7 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 	 * Used for caching instances of Selectors objects so they don't need to be re-created multiple times
 	 *
 	 */
-	protected $selectors = array(); 
+	protected $selectors = array();
 
 	/**
 	 * Construct dynamic roles
@@ -54,11 +54,11 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 	 */
 	public function __construct() {
 
-		$this->set('parent_id', 0); 
+		$this->set('parent_id', 0);
 		$this->set('maxMultiplier', self::maxMultiplier);
 
-		require(__DIR__ . "/DynamicRole.php"); 
-		require(__DIR__ . "/DynamicRoles.php"); 
+		require(__DIR__ . "/DynamicRole.php");
+		require(__DIR__ . "/DynamicRoles.php");
 	}
 
 	/**
@@ -68,8 +68,8 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 	public function init() {
 
 		try {
-			$template = $this->templates->get(self::templateName); 
-			if(!$template) throw new WireException("Unable to find template: " . self::templateName); 
+			$template = $this->templates->get(self::templateName);
+			if(!$template) throw new WireException("Unable to find template: " . self::templateName);
 			if(version_compare($this->wire('config')->version, '2.8.0') >= 0) {
 				$droles = new DynamicRoles($this->wire(), $template, $this->parent_id);
 			} else {
@@ -79,29 +79,27 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 			$this->populateToUser();
 
 		} catch(Exception $e) {
-			$this->error($e->getMessage()); 
+			$this->error($e->getMessage());
 			$droles = array();
 		}
 
-		// https://github.com/ryancramerdesign/DynamicRoles/issues/16
-		$user = $this->wire('user'); 
-		//$user = $event->object;
+		$user = $this->wire('user');
 
-		if(count($droles) && $user->isLoggedin() && !$user->isSuperuser()) { 
-			$userDroles = $user->getUnformatted('droles'); 
+		if(count($droles) && $user->isLoggedin() && !$user->isSuperuser()) {
+			$userDroles = $user->getUnformatted('droles');
 			if($userDroles && count($userDroles)) {
-				$this->addHookAfter('User::hasPagePermission', $this, 'hookAfterUserHasPagePermission'); 
-				$this->addHookAfter('User::hasTemplatePermission', $this, 'hookAfterUserHasTemplatePermission'); 
-				$this->pages->addHook('found', $this, 'hookPagesFound'); 
-				$this->addHookAfter('PageFinder::getQuery', $this, 'hookAfterPageFinderGetQuery'); 
-				$this->addHookBefore('PageFinder::getQueryAllowedTemplatesWhere', $this, 'hookBeforePageFinderGetQueryAllowedTemplatesWhere'); 
+				$this->addHookAfter('User::hasPagePermission', $this, 'hookAfterUserHasPagePermission');
+				$this->addHookAfter('User::hasTemplatePermission', $this, 'hookAfterUserHasTemplatePermission');
+				$this->pages->addHook('found', $this, 'hookPagesFound');
+				$this->addHookAfter('PageFinder::getQuery', $this, 'hookAfterPageFinderGetQuery');
+				$this->addHookBefore('PageFinder::getQueryAllowedTemplatesWhere', $this, 'hookBeforePageFinderGetQueryAllowedTemplatesWhere');
 			}
 		}
 
 		$this->pages->addHookAfter('saved', $this, 'hookPagesSaved');
 		// https://github.com/LostKobrakai/DynamicRoles/commit/5548722a566f7e4e23d326bd64a0783098b67108
-		$this->pages->addHookAfter('added', $this, 'hookPagesAdded'); 
-		$this->pages->addHookAfter('deleted', $this, 'hookPagesDeleted'); 
+		$this->pages->addHookAfter('added', $this, 'hookPagesAdded');
+		$this->pages->addHookAfter('deleted', $this, 'hookPagesDeleted');
 
 	}
 
@@ -110,19 +108,19 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 	 *
 	 */
 	protected function populateToUser() {
-		$user = $this->wire('user'); 
+		$user = $this->wire('user');
 		if($user->isSuperuser()) return;
 		if(!$user->isLoggedin()) return;
 
-		$session = $this->wire('session'); 
-		$droleTime = (int) $session->droleTime; 
+		$session = $this->wire('session');
+		$droleTime = (int) $session->droleTime;
 		$needsRefresh = false;
 
 		// determine if any dynamic roles have been modified since the definitions were stored in the cache
 		foreach($this->wire('droles') as $drole) {
-			if($drole->modified > $droleTime) $needsRefresh = true; 
+			if($drole->modified > $droleTime) $needsRefresh = true;
 		}
-		
+
 		// we keep the user's relevant group IDs in the session so that we don't have
 		// to determine them on every request
 		if(!$session->droleIDs || $needsRefresh) {
@@ -131,33 +129,33 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 
 			foreach($this->wire('droles') as $drole) {
 				// skip dynamic roles that can't match any users
-				$selector = $drole->get(self::fieldNameUser); 
-				if(!strlen($selector)) continue; 
+				$selector = $drole->get(self::fieldNameUser);
+				if(!strlen($selector)) continue;
 
 				// form a selector that is a combination of this dynamic role with the current user to see if it matches
-				$selector = "$selector, id=$user->id, include=all"; 		
+				$selector = "$selector, id=$user->id, include=all";
 				// attempt to find user that matches the selector
 				$u = $this->wire('users')->get($selector);
 
-				// does it match?	
-				if($u->id && $u->id == $user->id) { 
+				// does it match?
+				if($u->id && $u->id == $user->id) {
 					// if yes, we've found a group that this user belongs in
-					$droleIDs[] = $drole->id; 
-					$this->message("Dynamic Role: $drole->name", Notice::debug); 
+					$droleIDs[] = $drole->id;
+					$this->message("Dynamic Role: $drole->name", Notice::debug);
 				} else {
 					// if no, then user does not belong in this group, move onto the next...
-					// $this->message("Dynamic Role does not match: $selector", Notice::debug); 
+					// $this->message("Dynamic Role does not match: $selector", Notice::debug);
 				}
 			}
 
 			// save the user's group IDs to the session so that we don't have to execute the above code often
-			$session->set('droleIDs', $droleIDs); 
+			$session->set('droleIDs', $droleIDs);
 			// remember the time these IDs were saved so we can compare them to the time groups last changed
-			$session->set('droleTime', time()); 
+			$session->set('droleTime', time());
 
 		} else {
 			// we already have the group IDs in the session
-			$droleIDs = $session->droleIDs; 
+			$droleIDs = $session->droleIDs;
 		}
 
 		// convert the group IDs to 'droles' PageArray as a property of the user
@@ -166,74 +164,74 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 			if(in_array($drole->id, $droleIDs)) $droles->add($drole);
 		}
 
-		$user->set(self::fieldName, $droles); 
+		$user->set(self::fieldName, $droles);
 	}
 
 	/**
 	 * Hook after PageFinder::getQuery
 	 *
 	 * Here we LEFT JOIN the drole access tables when they match the pages_id.
-	 * This is used in combination with hookBeforePageFinderGetQueryAllowedTemplatesWhere hook below. 
+	 * This is used in combination with hookBeforePageFinderGetQueryAllowedTemplatesWhere hook below.
 	 *
 	 */
 	public function hookAfterPageFinderGetQuery($event) {
 
 		if(!count($this->wire('user')->get(self::fieldName))) return;
 		$query = $event->return;
-		$tableView = self::tableNameView; 
-		$tableEdit = self::tableNameEdit; 
-		$tableAdd = self::tableNameAdd; 
+		$tableView = self::tableNameView;
+		$tableEdit = self::tableNameEdit;
+		$tableAdd = self::tableNameAdd;
 		$ids = array();
 		$idsEdit = array();
 
 		foreach($this->wire('user')->get(self::fieldName) as $drole) {
-			$ids[] = (int) $drole->id; 
-			if($drole->hasEditPermission()) $idsEdit[] = (int) $drole->id; 
+			$ids[] = (int) $drole->id;
+			if($drole->hasEditPermission()) $idsEdit[] = (int) $drole->id;
 		}
 
-		$query->select("$tableView.drole_id AS " . self::viewableKey); 
-		$query->leftjoin("$tableView ON $tableView.pages_id=pages.id AND $tableView.drole_id IN(" . implode(',', $ids) . ")"); 
+		$query->select("$tableView.drole_id AS " . self::viewableKey);
+		$query->leftjoin("$tableView ON $tableView.pages_id=pages.id AND $tableView.drole_id IN(" . implode(',', $ids) . ")");
 
 		if(count($idsEdit)) {
-			$query->select("$tableEdit.drole_id AS " . self::editableKey); 
-			$query->select("$tableAdd.drole_id AS " . self::addableKey); 
-			$query->leftjoin("$tableEdit ON $tableEdit.pages_id=pages.id AND $tableEdit.drole_id IN(" . implode(',', $idsEdit) . ")"); 
-			$query->leftjoin("$tableAdd ON $tableAdd.pages_id=pages.id AND $tableAdd.drole_id IN(" . implode(',', $idsEdit) . ")"); 
+			$query->select("$tableEdit.drole_id AS " . self::editableKey);
+			$query->select("$tableAdd.drole_id AS " . self::addableKey);
+			$query->leftjoin("$tableEdit ON $tableEdit.pages_id=pages.id AND $tableEdit.drole_id IN(" . implode(',', $idsEdit) . ")");
+			$query->leftjoin("$tableAdd ON $tableAdd.pages_id=pages.id AND $tableAdd.drole_id IN(" . implode(',', $idsEdit) . ")");
 		}
 	}
 
 	/**
 	 * Hook before PageFinder::getQueryAllowedTemplatesWhere
 	 *
-	 * Here we add a statement to provide an alternative to allowed templates 
+	 * Here we add a statement to provide an alternative to allowed templates
 	 * by allowing pages marked in our drole access table. We basically take
 	 * the existing WHERE condition and add an OR to it for our droles condition.
 	 *
 	 */
 	public function hookBeforePageFinderGetQueryAllowedTemplatesWhere($event) {
 		if(!count($this->wire('user')->get(self::fieldName))) return;
-		$query = $event->arguments(0); 
-		$where = $event->arguments(1); 
-		$tableView = self::tableNameView; 
+		$query = $event->arguments(0);
+		$where = $event->arguments(1);
+		$tableView = self::tableNameView;
 		// either existing WHERE condition OR our WHERE condition that a $tableView.pages_id entry exists
 		$where = "(($where) OR $tableView.pages_id IS NOT NULL)";
-		$event->arguments(1, $where); 
+		$event->arguments(1, $where);
 	}
 
 	/**
 	 * Hook to Pages::find
 	 *
-	 * Automatically set a special viewable and editable status (_drole_viewable, _drole_editable) 
+	 * Automatically set a special viewable and editable status (_drole_viewable, _drole_editable)
 	 * for results returned from selectors we've manipulated. This prevents us
 	 * from having to perform additional queries to determine viewable access later.
 	 *
 	 */
 	public function hookPagesFound($event) {
 
-		$pages = $event->arguments(0); 
+		$pages = $event->arguments(0);
 		if(!count($pages)) return;
 
-		$details = $event->arguments(1); 
+		$details = $event->arguments(1);
 		$pagesInfo = $details['pagesInfo'];
 
 		$viewables = array();
@@ -241,15 +239,15 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 		$addables = array();
 
 		foreach($pagesInfo as $item) {
-			if(array_key_exists(self::viewableKey, $item)) $viewables[$item['id']] = $item[self::viewableKey]; 
+			if(array_key_exists(self::viewableKey, $item)) $viewables[$item['id']] = $item[self::viewableKey];
 			if(array_key_exists(self::editableKey, $item)) $editables[$item['id']] = $item[self::editableKey];
 			if(array_key_exists(self::addableKey, $item)) $addables[$item['id']] = $item[self::addableKey];
 		}
 
 		foreach($pages as $page) {
-			$page->setQuietly(self::viewableKey, empty($viewables[$page->id]) ? false : true); 
-			$page->setQuietly(self::editableKey, empty($editables[$page->id]) ? false : true); 
-			$page->setQuietly(self::addableKey, empty($addables[$page->id]) ? false : true); 
+			$page->setQuietly(self::viewableKey, empty($viewables[$page->id]) ? false : true);
+			$page->setQuietly(self::editableKey, empty($editables[$page->id]) ? false : true);
+			$page->setQuietly(self::addableKey, empty($addables[$page->id]) ? false : true);
 		}
 	}
 
@@ -258,24 +256,26 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 	 *
 	 */
 	public function hookAfterUserHasPagePermission(HookEvent $event) {
-		
+
 		static $cache = array();
 
 		$has = $event->return;
 		if($has) return; // if they already have it, then we'll accept that
 
-		$name = $event->arguments(0); 
-		$page = $event->arguments(1); 
-		$user = $this->wire('user'); 
+		$name = $event->arguments(0);
+		$page = $event->arguments(1);
+		//$user = $this->wire('user');
+		// https://github.com/ryancramerdesign/DynamicRoles/issues/16
+		$user = $event->object;
 
-		if(is_object($name)) $name = $name->name; 
+		if(is_object($name)) $name = $name->name;
 
 		if(!isset($cache[$user->id])) $cache[$user->id] = array();
 		if(!isset($cache[$user->id][$name])) $cache[$user->id][$name] = array();
 
 		if($page && $page->id) {
 			if(array_key_exists($page->id, $cache[$user->id][$name])) {
-				return $event->return = $cache[$user->id][$name][$page->id]; 
+				return $event->return = $cache[$user->id][$name][$page->id];
 			}
 		} else if(array_key_exists($name, $cache[$user->id]) && array_key_exists(0, $cache[$user->id][$name])) {
 			return $event->return = $cache[$user->id][$name][0];  // 0 index represents general permission
@@ -293,20 +293,20 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 
 			// first determine if the drole has this permission at all
 			if(!$has) foreach($drole->permissions as $permission) {
-				if($permission->name == $name) $has = true; 
+				if($permission->name == $name) $has = true;
 				if($has) break;
 			}
 
 			// if not checking a page, and permission is there, we can stop now
 			if($has && !$page) break;
 
-			// if we reached this point and user still doesn't have permission, 
+			// if we reached this point and user still doesn't have permission,
 			// or if there is no page being checke then we can safely break out of this check now
-			if(!$has || !$page) continue; 
+			if(!$has || !$page) continue;
 
 			// now we know user has the requested permission, but the question is whether
 			// they have it on the requested page
-			$hasOnPage = false; 
+			$hasOnPage = false;
 
 			// array of selector strings to execute in determining access (rarely used)
 			$strs = array();
@@ -325,29 +325,29 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 				}
 
 			} else if($name == 'page-add') {
-			
+
 				$value = $page->get(self::addableKey);
 
 				if($value !== null) {
 					// page has a _drole_editable field set from the DB join that we can use
-					$hasOnPage = (bool) $value; 
+					$hasOnPage = (bool) $value;
 				} else {
 					// no _drole_editable has been set, so we'll queue it for runtime processing
 					$strs = $this->getPageValue($drole, self::fieldNameAdd);
 				}
-				
+
 
 			} else {
 				// some permission other than page-view or page-add
 				// since all other page-* specific permission require page-edit, we'll focus on that
 
-				$hadEdit = true; 
-				$hasEdit = false; 
+				$hadEdit = true;
+				$hasEdit = false;
 				$value = $page->get(self::editableKey);
 
 				if($value !== null) {
 					// page has a _drole_editable field set from the DB join that we can use
-					$hasEdit = (bool) $value; 
+					$hasEdit = (bool) $value;
 				} else {
 					// no _drole_editable has been set, so we'll queue it for runtime processing
 					$strs = $this->getPageValue($drole, self::fieldNameEdit);
@@ -355,71 +355,71 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 
 				// check if they had edit permission before the $page was a factor
 				if(!$hasEdit && $hadEdit) {
-					// this condition occurs if user creates a page but it does not yet 
+					// this condition occurs if user creates a page but it does not yet
 					// match all the conditions of the edit selectors
 					if($name == 'page-edit' && $user->hasPermission('page-add', $page->parent)) {
 
 						if($page->createdUser->id == $user->id && $page->isUnpublished()) {
 							// if user created this page, and they still have the appropriate page-create
 							// and page-add permissions, let them edit it still if unpublished
-							// $this->error($this->_('This page does not meet the user group criteria to be published.')); 
-							if($name != 'page-publish') $hasEdit = true; 	
+							// $this->error($this->_('This page does not meet the user group criteria to be published.'));
+							if($name != 'page-publish') $hasEdit = true;
 
 						} else if($page->modifiedUser->id == $user->id && ($page->isUnpublished() || $page->modified >= time()-(60*5))) {
 							// if user was last person to modify the page, and it no longer matches the criteria
-							// and it was modified by them in the last 5 minutes, then unpublish it. 
+							// and it was modified by them in the last 5 minutes, then unpublish it.
 							// this gives them the opportunity to correct whatever broke the page matching their drole rules
 							// @todo make the page revert back to previous state instead, or prevent it from being saved in the first place
 							// we perform this action at the very bottom of this method since the user may have gained the needed access
-							// from some other drole they belong to in the foreach($droles) loop. 
-							if($name != 'page-publish') $unpublishPage = true; 
+							// from some other drole they belong to in the foreach($droles) loop.
+							if($name != 'page-publish') $unpublishPage = true;
 						}
 					}
 				}
 
-				$hasOnPage = $hasEdit; 
+				$hasOnPage = $hasEdit;
 			}
 
-			// the following is only executed if the viewable/editable info was not joined from the DB query, 
+			// the following is only executed if the viewable/editable info was not joined from the DB query,
 			// as would be the case for pages loaded before this module, or potentially others?
 			if(!$hasOnPage && count($strs)) {
 				// this is a backup condition that should not often be executed, and that's a good thing because
 				// it performs new finds(), runs new queries...
 				if(is_object($strs)) $strs = $strs->getArray();
 				$selectorStr = "include=all, (" . implode('), (', $strs) . "), id=$page";
-				$hasOnPage = $this->wire('pages')->count($selectorStr); 
+				$hasOnPage = $this->wire('pages')->count($selectorStr);
 				if($hasOnPage && $name == 'page-view') {
-					$page->setQuietly(self::viewableKey, true); 
-				} else if($hasOnPage && $name == 'page-add') { 
-					$page->setQuietly(self::addableKey, true); 
-				} else if($hasOnPage) { 
-					$page->setQuietly(self::editableKey, true); 
+					$page->setQuietly(self::viewableKey, true);
+				} else if($hasOnPage && $name == 'page-add') {
+					$page->setQuietly(self::addableKey, true);
+				} else if($hasOnPage) {
+					$page->setQuietly(self::editableKey, true);
 				}
 			}
 
-			$has = $hasOnPage; 			
+			$has = $hasOnPage;
 			if($has) $break;
 		}
 
 		if(!$has && $unpublishPage) {
 			// user had access to a page but lost it because they changed something about it that made it no longer match their edit criteria
-			// here we unpublish it so that they can continue to edit it and correct it 
+			// here we unpublish it so that they can continue to edit it and correct it
 			if(!$page->isUnpublished()) {
 				$of = $page->of();
-				$page->addStatus(Page::statusUnpublished); 
+				$page->addStatus(Page::statusUnpublished);
 				$page->save();
-				$page->of(false); 
-				$this->error(sprintf($this->_('Page %s was automatically unpublished because is no longer matches your edit criteria. Please correct it, save it and then re-publish the page when possible.'), $page->path)); 
+				$page->of(false);
+				$this->error(sprintf($this->_('Page %s was automatically unpublished because is no longer matches your edit criteria. Please correct it, save it and then re-publish the page when possible.'), $page->path));
 			}
-			$has = true; 
+			$has = true;
 		}
 
 		// cache result
 		if(!isset($cache[$user->id][$name])) $cache[$user->id][$name] = array();
-		if($page && $page->id) $cache[$user->id][$name][$page->id] = $has; 
-			else $cache[$user->id][$name][0] = $has; 
+		if($page && $page->id) $cache[$user->id][$name][$page->id] = $has;
+			else $cache[$user->id][$name][0] = $has;
 
-		$event->return = $has; 
+		$event->return = $has;
 	}
 
 	/**
@@ -429,16 +429,18 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 	public function hookAfterUserHasTemplatePermission(HookEvent $event) {
 
 		$has = $event->return; // if user already has the permission via traditional roles, we don't revoke it.
-		if($has) return; 
+		if($has) return;
 
 		$name = $event->arguments(0);
-		$template = $event->arguments(1); 
-		$user = $this->wire('user');
-		
-		if(is_object($name)) $name = $name->name; 
-		if(!is_object($template)) $template = $this->wire('templates')->get($template); 
+		$template = $event->arguments(1);
+		//$user = $this->wire('user');
+		// https://github.com/ryancramerdesign/DynamicRoles/issues/16
+		$user = $event->object;
+
+		if(is_object($name)) $name = $name->name;
+		if(!is_object($template)) $template = $this->wire('templates')->get($template);
 		if(!$template) return;
-		$has = false; 
+		$has = false;
 
 		$droles = $this->wire('user')->get(self::fieldName);
 		if(!$droles) return;
@@ -450,10 +452,10 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 				foreach($strs as $selectorString) {
 					if(strpos($selectorString, 'template=') !== false) {
 						// edit selector mentions templates
-						if(!preg_match('/\btemplate=([\d\|]+)\b/', $selectorString, $matches)) continue; 
-						$ids = explode('|', $matches[1]); 
+						if(!preg_match('/\btemplate=([\d\|]+)\b/', $selectorString, $matches)) continue;
+						$ids = explode('|', $matches[1]);
 						if(in_array("$template->id", $ids)) {
-							$has = true; 
+							$has = true;
 							break;
 						}
 					} else {
@@ -463,7 +465,7 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 			}
 		}
 
-		$event->return = $has; 
+		$event->return = $has;
 	}
 
 	/**
@@ -472,17 +474,17 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 	 */
 	public function hookPagesSaved($event) {
 
-		$page = $event->arguments(0); 
-		$changes = $event->arguments(1); 
+		$page = $event->arguments(0);
+		$changes = $event->arguments(1);
 
 		if($page->template == self::templateName) {
 			// if it's a drole being saved, rebuild the drole table for that drole
 			if(in_array(self::fieldNameView, $changes) || in_array(self::fieldNameEdit, $changes) || in_array(self::fieldNameAdd, $changes)) {
-				$this->rebuildTableData($page); 
+				$this->rebuildTableData($page);
 			}
-
-		} else if(count($changes)) {
-			$this->rebuildForPage($page); 
+		//https://github.com/ryancramerdesign/DynamicRoles/issues/14
+		} else if(count($changes) || !$page->created) {
+			$this->rebuildForPage($page);
 		}
 
 	}
@@ -494,8 +496,8 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 	public function hookPagesAdded($event) {
 
 		// https://github.com/LostKobrakai/DynamicRoles/commit/5548722a566f7e4e23d326bd64a0783098b67108
-		$page = $event->arguments(0); 
-		$this->rebuildForPage($page); 
+		$page = $event->arguments(0);
+		$this->rebuildForPage($page);
 
 	}
 
@@ -505,13 +507,13 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 	 */
 	public function hookPagesDeleted($event) {
 
-		$page = $event->arguments(0); 
+		$page = $event->arguments(0);
 
-		if($page->template == self::templateName) { 
+		if($page->template == self::templateName) {
 			// remove entries for the deleted drole
-			foreach(array(self::tableNameView, self::tableNameEdit, self::tableNameAdd) as $t) { 	
+			foreach(array(self::tableNameView, self::tableNameEdit, self::tableNameAdd) as $t) {
 				$sql = "DELETE FROM $t WHERE drole_id=:id";
-				$query = $this->wire('database')->prepare($sql); 
+				$query = $this->wire('database')->prepare($sql);
 				$query->bindValue(':id', $page->id);
 				$query->execute();
 			}
@@ -521,17 +523,17 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 
 	/**
 	 * Get a value from a Page field
-	 * 
+	 *
 	 * Intention here is to abstract away the differences between when Multipler is installed and when it isn't
 	 *
 	 */
 	protected function getPageValue(Page $page, $fieldName) {
-		$value = $page->get($fieldName); 
+		$value = $page->get($fieldName);
 		if(in_array($fieldName, array(self::fieldNameView, self::fieldNameEdit, self::fieldNameAdd))) {
 			// make certain fields behave like Multiplier fields, even if they aren't Multipliers
-			if(is_string($value)) $value = array($value); 	
+			if(is_string($value)) $value = array($value);
 		}
-		return $value; 
+		return $value;
 	}
 
 	/**
@@ -540,14 +542,14 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 	 */
 	protected function rebuildForPage(Page $page) {
 
-		$tableView = self::tableNameView; 
-		$tableEdit = self::tableNameEdit; 
-		$tableAdd = self::tableNameAdd; 
+		$tableView = self::tableNameView;
+		$tableEdit = self::tableNameEdit;
+		$tableAdd = self::tableNameAdd;
 		// remove any existing data for this table
 
-		foreach(array($tableView, $tableEdit, $tableAdd) as $t) { 	
+		foreach(array($tableView, $tableEdit, $tableAdd) as $t) {
 			$sql = "DELETE FROM $t WHERE pages_id=:id";
-			$query = $this->wire('database')->prepare($sql); 
+			$query = $this->wire('database')->prepare($sql);
 			$query->bindValue(':id', $page->id);
 			$query->execute();
 		}
@@ -558,22 +560,22 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 		$tempProcess = $page->process;
 		$page->process = null;
 
-		$guest = $this->wire('users')->get('guest'); 
-		$guestViewable = $page->viewable($guest); 
+		$guest = $this->wire('users')->get('guest');
+		$guestViewable = $page->viewable($guest);
 
 		foreach($this->wire('droles') as $drole) {
 
-			$editable = false; 
-			$addable = false; 
-			$viewable = $guestViewable; 
+			$editable = false;
+			$addable = false;
+			$viewable = $guestViewable;
 
 			if(!$viewable) foreach($this->getPageValue($drole, self::fieldNameView) as $selectorString) {
 				// https://github.com/ryancramerdesign/DynamicRoles/commit/915794bb169fb48a14118c5c72533f3605845f3e
-				// $p = $this->wire('pages')->get("$selectorString, id=$page->id"); 
+				// $p = $this->wire('pages')->get("$selectorString, id=$page->id");
 				// if($p->id == $page->id) {
 				if($this->wire('pages')->count("id=$page->id, $selectorString") == 1) {
-					$viewable = true; 
-					$this->message("Viewable to dynamic role: $drole->name", Notice::debug); 
+					$viewable = true;
+					$this->message("Viewable to dynamic role: $drole->name", Notice::debug);
 					break;
 				}
 			}
@@ -582,13 +584,13 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 
 				foreach($this->getPageValue($drole, self::fieldNameEdit) as $selectorString) {
 					// https://github.com/ryancramerdesign/DynamicRoles/commit/915794bb169fb48a14118c5c72533f3605845f3e
-					// $p = $this->wire('pages')->get("id=$page->id, $selectorString"); 
+					// $p = $this->wire('pages')->get("id=$page->id, $selectorString");
 					// if($p->id == $page->id) {
 					if($this->wire('pages')->count("id=$page->id, $selectorString") == 1) {
 						$editable = true;
-						$this->message("Editable to dynamic role: $drole->name", Notice::debug); 
+						$this->message("Editable to dynamic role: $drole->name", Notice::debug);
 						break;
-						
+
 					// https://github.com/LostKobrakai/DynamicRoles/commit/71f70bfa612c05a32d1a07f8e9b5d2a10f0c65d8
 					// https://github.com/ryancramerdesign/DynamicRoles/pull/17/commits/71f70bfa612c05a32d1a07f8e9b5d2a10f0c65d8
 					} else if(!$this->wire('user')->isSuperuser() && $this->wire('user')->id == $page->modified_users_id) {
@@ -601,11 +603,11 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 
 				foreach($this->getPageValue($drole, self::fieldNameAdd) as $selectorString) {
 					// https://github.com/ryancramerdesign/DynamicRoles/commit/915794bb169fb48a14118c5c72533f3605845f3e
-					// $p = $this->wire('pages')->get("id=$page->id, $selectorString"); 
+					// $p = $this->wire('pages')->get("id=$page->id, $selectorString");
 					// if($p->id == $page->id) {
 					if($this->wire('pages')->count("id=$page->id, $selectorString") == 1) {
 						$addable = true;
-						$this->message("Addable to dynamic role: $drole->name", Notice::debug); 
+						$this->message("Addable to dynamic role: $drole->name", Notice::debug);
 						break;
 					}
 				}
@@ -616,14 +618,14 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 			$page->process = $tempProcess;
 
 			// if something is editable, it must also be viewable
-			if(($editable || $addable) && !$viewable) $viewable = true; 
+			if(($editable || $addable) && !$viewable) $viewable = true;
 
 			foreach(array($tableView => $viewable, $tableEdit => $editable, $tableAdd => $addable) as $t => $allow) {
-				if(!$allow) continue; 
+				if(!$allow) continue;
 				$sql = "INSERT INTO $t (pages_id, drole_id) VALUES(:pages_id, :drole_id)";
-				$query = $this->wire('database')->prepare($sql); 
-				$query->bindValue(':pages_id', $page->id); 
-				$query->bindValue(':drole_id', $drole->id); 
+				$query = $this->wire('database')->prepare($sql);
+				$query->bindValue(':pages_id', $page->id);
+				$query->bindValue(':drole_id', $drole->id);
 				$query->execute();
 			}
 
@@ -633,51 +635,51 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 	/**
 	 * Rebuild the table data for a given drole
 	 *
-	 * @todo split this into two separate functions to rebuild view or edit tables separately according to what changed. 
+	 * @todo split this into two separate functions to rebuild view or edit tables separately according to what changed.
 	 *
 	 */
 	protected function rebuildTableData(Page $drole) {
 
 		// prevent DB from logging queries, as there may be a LOT
-		$this->wire('database')->setDebugMode(false); 
-		$pageFinderOptions = array('returnVerbose' => false, 'getTotal' => false);		
+		$this->wire('database')->setDebugMode(false);
+		$pageFinderOptions = array('returnVerbose' => false, 'getTotal' => false);
 
 		$fieldsTables = array(
 			self::fieldNameView => self::tableNameView,
-			self::fieldNameEdit => self::tableNameEdit, 
+			self::fieldNameEdit => self::tableNameEdit,
 			self::fieldNameAdd => self::tableNameAdd
 			);
 
 		// delete existing entries
 		foreach($fieldsTables as $fieldName => $tableName) {
-			$sql = "DELETE FROM $tableName WHERE drole_id=:drole_id"; 
-			$query = $this->wire('database')->prepare($sql); 
-			$query->bindValue(':drole_id', $drole->id); 
+			$sql = "DELETE FROM $tableName WHERE drole_id=:drole_id";
+			$query = $this->wire('database')->prepare($sql);
+			$query->bindValue(':drole_id', $drole->id);
 			$query->execute();
 		}
 
 		// add new entries
 		foreach($fieldsTables as $fieldName => $tableName) {
-			if($fieldName != self::fieldNameView && !$drole->hasEditPermission()) continue; 
+			if($fieldName != self::fieldNameView && !$drole->hasEditPermission()) continue;
 
-			$sql = "INSERT INTO `$tableName` (pages_id, drole_id) VALUES(:pages_id, :drole_id)"; 
-			$query = $this->wire('database')->prepare($sql); 
-			$query->bindValue(':drole_id', $drole->id); 
+			$sql = "INSERT INTO `$tableName` (pages_id, drole_id) VALUES(:pages_id, :drole_id)";
+			$query = $this->wire('database')->prepare($sql);
+			$query->bindValue(':drole_id', $drole->id);
 
-			foreach($this->getPageValue($drole, $fieldName) as $selectorString) { 
+			foreach($this->getPageValue($drole, $fieldName) as $selectorString) {
 
-				if(!strlen(trim($selectorString))) continue; 
-				$selectors = new Selectors($selectorString); 
-				$finder = new PageFinder(); 
-				$ids = $finder->find($selectors, $pageFinderOptions); 
+				if(!strlen(trim($selectorString))) continue;
+				$selectors = new Selectors($selectorString);
+				$finder = new PageFinder();
+				$ids = $finder->find($selectors, $pageFinderOptions);
 				$timer = Debug::timer();
 
 				foreach($ids as $id) {
-					$query->bindParam(':pages_id', $id); 
+					$query->bindParam(':pages_id', $id);
 					$query->execute();
 				}
 
-				$this->message("Added " . count($ids) . " to '$tableName' for '$drole->name' in " . Debug::timer($timer) . " seconds", Notice::debug); 
+				$this->message("Added " . count($ids) . " to '$tableName' for '$drole->name' in " . Debug::timer($timer) . " seconds", Notice::debug);
 			}
 		}
 	}
@@ -687,20 +689,20 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 	 *
 	 * @param string $selectorString
 	 * @return Selectors
-	 * 
+	 *
 	 */
 	protected function strToSelectors($selectorString) {
-		if(is_object($selectorString)) return $selectorString; 
+		if(is_object($selectorString)) return $selectorString;
 
 		if(isset($this->selectors[$selectorString])) {
-			$selectors = $this->selectors[$selectorString]; // pull form cache	
+			$selectors = $this->selectors[$selectorString]; // pull form cache
 
 		} else {
-			$selectors = new Selectors($selectorString); 
+			$selectors = new Selectors($selectorString);
 			$this->selectors[$selectorString] = $selectors; // push to cache
 		}
 
-		return $selectors; 
+		return $selectors;
 	}
 
 	/**
@@ -712,76 +714,76 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 		$configData = array();
 
 		if($this->templates->get(self::templateName)) {
-			throw new WireException("There is already a template installed named: " . self::templateName); 
+			throw new WireException("There is already a template installed named: " . self::templateName);
 		}
 
-		$adminPage = $this->pages->get($this->config->adminRootPageID); 
-		$accessPage = $adminPage->child("name=access, include=all"); 
-		if(!$accessPage->id) throw new WireException("Unable to locate {$adminPage->path}access/"); 
-		
-		$info = $this->wire('modules')->getModuleInfo($this); 
-		$hasMultiplier = $this->wire('modules')->isInstalled('InputfieldMultiplier'); 
+		$adminPage = $this->pages->get($this->config->adminRootPageID);
+		$accessPage = $adminPage->child("name=access, include=all");
+		if(!$accessPage->id) throw new WireException("Unable to locate {$adminPage->path}access/");
+
+		$info = $this->wire('modules')->getModuleInfo($this);
+		$hasMultiplier = $this->wire('modules')->isInstalled('InputfieldMultiplier');
 		$multiplierNote = ''; // $hasMultiplier ? ' Please note that each section below is considered an OR condition.' : '';
 
 		// create the droles parent page
-		$drolesPage = new Page(); 
-		$drolesPage->parent = $accessPage; 
+		$drolesPage = new Page();
+		$drolesPage->parent = $accessPage;
 		$drolesPage->template = 'admin';
 		$drolesPage->process = $this->modules->get('ProcessDynamicRole');
 		$drolesPage->name = self::pageName;
 		$drolesPage->title = $info['title'];
-		$drolesPage->status = Page::statusSystem; 
-		$drolesPage->sort = $accessPage->numChildren; 
+		$drolesPage->status = Page::statusSystem;
+		$drolesPage->sort = $accessPage->numChildren;
 		$drolesPage->save();
-		$configData['parent_id'] = $drolesPage->id; 
+		$configData['parent_id'] = $drolesPage->id;
 
 		$droleUserSelector = new Field();
 		$droleUserSelector->name = self::fieldNameUser;
 		$droleUserSelector->label = 'Who is in this dynamic role?';
-		$droleUserSelector->type = $this->modules->get('FieldtypeSelector'); 
+		$droleUserSelector->type = $this->modules->get('FieldtypeSelector');
 		$droleUserSelector->flags = Field::flagSystem;
 		$droleUserSelector->initValue = "pass!='', include=all";
-		$droleUserSelector->allowSystemCustomFields = true; 
-		$droleUserSelector->allowSystemTemplates = true; 
+		$droleUserSelector->allowSystemCustomFields = true;
+		$droleUserSelector->allowSystemTemplates = true;
 		$droleUserSelector->save();
 
 		$droleAddSelector = new Field();
-		$droleAddSelector->name = self::fieldNameAdd; 
+		$droleAddSelector->name = self::fieldNameAdd;
 		$droleAddSelector->label = 'Where can they add new pages?';
 		$droleAddSelector->description = 'Create a selector that matches the parent pages where users in this dynamic role will be able to create new children. If the dynamic role is not allowed to create new pages then leave it blank. ';
 		$droleAddSelector->description .= 'Note that your "what can they edit" selector above must include mention of one or more templates before a user can create new pages. ';
 		$droleAddSelector->description .= $multiplierNote;
 		$droleAddSelector->flags = Field::flagSystem;
-		$droleAddSelector->showIf = "permissions=" . self::editPermissionID; 
-		if($hasMultiplier) { 
-			$droleAddSelector->type = $this->modules->get('FieldtypeMultiplier'); 
+		$droleAddSelector->showIf = "permissions=" . self::editPermissionID;
+		if($hasMultiplier) {
+			$droleAddSelector->type = $this->modules->get('FieldtypeMultiplier');
 			$droleAddSelector->fieldtypeClass = 'FieldtypeSelector';
 			$droleAddSelector->schemaClass = 'FieldtypeSelector';
 			$droleAddSelector->qtyMin = 1;
 			$droleAddSelector->qtyMax = self::maxMultiplier;
-			$droleAddSelector->trashable = 0; 
+			$droleAddSelector->trashable = 0;
 		} else {
-			$droleAddSelector->type = $this->modules->get('FieldtypeSelector'); 
+			$droleAddSelector->type = $this->modules->get('FieldtypeSelector');
 		}
 		$droleAddSelector->save();
 
 		$droleEditSelector = new Field();
-		$droleEditSelector->name = self::fieldNameEdit; 
+		$droleEditSelector->name = self::fieldNameEdit;
 		$droleEditSelector->label = 'What can they edit?';
-		$droleEditSelector->description = 'Create a selector that defines which pages are editable by users in this dynamic role. This may include any pages a user has view access to, whether those you defined above or those already viewable without dynamic roles. Focus on pages that would not already be editable to a user (via their traditional roles). This selector assigns new access but does not revoke existing access. '; 
+		$droleEditSelector->description = 'Create a selector that defines which pages are editable by users in this dynamic role. This may include any pages a user has view access to, whether those you defined above or those already viewable without dynamic roles. Focus on pages that would not already be editable to a user (via their traditional roles). This selector assigns new access but does not revoke existing access. ';
 		$droleEditSelector->description .= 'If you intend for users to be able to create pages as well, please make sure your selector includes mention of one or more templates. ';
 		$droleEditSelector->description .= $multiplierNote;
 		$droleEditSelector->flags = Field::flagSystem;
-		$droleEditSelector->showIf = "permissions=" . self::editPermissionID; 
-		if($hasMultiplier) { 
-			$droleEditSelector->type = $this->modules->get('FieldtypeMultiplier'); 
+		$droleEditSelector->showIf = "permissions=" . self::editPermissionID;
+		if($hasMultiplier) {
+			$droleEditSelector->type = $this->modules->get('FieldtypeMultiplier');
 			$droleEditSelector->fieldtypeClass = 'FieldtypeSelector';
 			$droleEditSelector->schemaClass = 'FieldtypeSelector';
-			$droleEditSelector->qtyMin = 1; 
-			$droleEditSelector->qtyMax = self::maxMultiplier; 
-			$droleEditSelector->trashable = 0; 
+			$droleEditSelector->qtyMin = 1;
+			$droleEditSelector->qtyMax = self::maxMultiplier;
+			$droleEditSelector->trashable = 0;
 		} else {
-			$droleEditSelector->type = $this->modules->get('FieldtypeSelector'); 
+			$droleEditSelector->type = $this->modules->get('FieldtypeSelector');
 		}
 		$droleEditSelector->save();
 
@@ -789,7 +791,7 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 		$droleViewSelector->name = self::fieldNameView;
 		$droleViewSelector->label = 'What can they view?';
 		$droleViewSelector->description = 'Create a selector that defines which pages are viewable by users in this dynamic role. Focus on pages that a user would not already have view access to (from their roles). This selector assigns new access but does not revoke existing access. For example, there is no reason for your selector here to match pages already viewable to guest users.' . $multiplierNote;
-		$droleViewSelector->showIf = "permissions=" . self::viewPermissionID; 
+		$droleViewSelector->showIf = "permissions=" . self::viewPermissionID;
 		$droleViewSelector->flags = Field::flagSystem;
 		if($hasMultiplier) {
 			$droleViewSelector->type = $this->modules->get('FieldtypeMultiplier');
@@ -797,44 +799,44 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 			$droleViewSelector->schemaClass = 'FieldtypeSelector';
 			$droleViewSelector->qtyMin = 1;
 			$droleViewSelector->qtyMax = self::maxMultiplier;
-			$droleViewSelector->trashable = 0; 
+			$droleViewSelector->trashable = 0;
 		} else {
-			$droleViewSelector->type = $this->modules->get('FieldtypeSelector'); 
+			$droleViewSelector->type = $this->modules->get('FieldtypeSelector');
 		}
 		$droleViewSelector->save();
 
 		// create the fieldgroup to be used by the drole template
-		$fieldgroup = new Fieldgroup(); 
+		$fieldgroup = new Fieldgroup();
 		$fieldgroup->name = self::templateName;
-		//$fieldgroup->add($this->fields->get('title')); 
-		$fieldgroup->add($droleUserSelector); 
-		$fieldgroup->add($this->fields->get('permissions')); 
-		$fieldgroup->add($droleViewSelector); 
-		$fieldgroup->add($droleEditSelector); 
-		$fieldgroup->add($droleAddSelector); 
+		//$fieldgroup->add($this->fields->get('title'));
+		$fieldgroup->add($droleUserSelector);
+		$fieldgroup->add($this->fields->get('permissions'));
+		$fieldgroup->add($droleViewSelector);
+		$fieldgroup->add($droleEditSelector);
+		$fieldgroup->add($droleAddSelector);
 		$fieldgroup->save();
 
 		// create the template used by dynamic role pages
-		$template = new Template();	
+		$template = new Template();
 		$template->name = self::templateName;
-		$template->fieldgroup = $fieldgroup; 
-		$template->parentTemplates = array($adminPage->template->id); 
-		$template->slashUrls = 1; 
+		$template->fieldgroup = $fieldgroup;
+		$template->parentTemplates = array($adminPage->template->id);
+		$template->slashUrls = 1;
 		$template->pageClass = 'DynamicRole';
 		$template->pageLabelField = 'name';
-		$template->noGlobal = 1; 
-		$template->noMove = 1; 
-		$template->noTrash = 1; 
-		$template->noUnpublish = 1; 
-		$template->noChildren = 1; 
-		$template->noChangeTemplate = 1; 
-		$template->nameContentTab = 1; 
-		$template->flags = Template::flagSystem; 
+		$template->noGlobal = 1;
+		$template->noMove = 1;
+		$template->noTrash = 1;
+		$template->noUnpublish = 1;
+		$template->noChildren = 1;
+		$template->noChangeTemplate = 1;
+		$template->nameContentTab = 1;
+		$template->flags = Template::flagSystem;
 		$template->save();
 
 		/*
 		$permission = $this->wire('permissions')->get('page-publish');
-		if(!$permission->id) { 
+		if(!$permission->id) {
 			// add page publish permission
 			// this addition is not removed at uninstall
 			$permission = $this->wire('permissions')->add('page-publish');
@@ -842,21 +844,21 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 		*/
 
 		// create our DB tables
-		foreach(array(self::tableNameView, self::tableNameEdit, self::tableNameAdd) as $t) {		
+		foreach(array(self::tableNameView, self::tableNameEdit, self::tableNameAdd) as $t) {
 			$this->wire('database')->exec("
 				CREATE TABLE $t (
-				pages_id INT UNSIGNED NOT NULL, 
+				pages_id INT UNSIGNED NOT NULL,
 				drole_id INT UNSIGNED NOT NULL,
-				PRIMARY KEY(pages_id, drole_id), 
+				PRIMARY KEY(pages_id, drole_id),
 				KEY drole_id (drole_id)
 				)");
-			$this->message("Created table: $t"); 
+			$this->message("Created table: $t");
 		}
 
 		// save the module config data
-		$this->modules->saveModuleConfigData('DynamicRoleSupport', $configData); 
+		$this->modules->saveModuleConfigData('DynamicRoleSupport', $configData);
 		$url = $this->wire('config')->urls->admin . 'access/' . self::pageName . '/';
-		$this->message("<b>Dynamic Role Support Installed on your Access menu. <a href='$url'>Configure Dynamic Roles Now &raquo;</a></b>", Notice::allowMarkup); 
+		$this->message("<b>Dynamic Role Support Installed on your Access menu. <a href='$url'>Configure Dynamic Roles Now &raquo;</a></b>", Notice::allowMarkup);
 	}
 
 	/**
@@ -865,68 +867,68 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 	 */
 	public function ___uninstall() {
 
-		$page = $this->pages->get($this->parent_id); 
-		if($page->id) { 
-			$page->status = Page::statusSystemOverride; 
+		$page = $this->pages->get($this->parent_id);
+		if($page->id) {
+			$page->status = Page::statusSystemOverride;
 			$page->status = 0;
-			$this->message("Removing page: $page->path"); 
-			$this->pages->delete($page, true); 
+			$this->message("Removing page: $page->path");
+			$this->pages->delete($page, true);
 		}
 
-		$template = $this->templates->get(self::templateName); 
-		if($template) { 
-			$template->flags = Template::flagSystemOverride; 
+		$template = $this->templates->get(self::templateName);
+		if($template) {
+			$template->flags = Template::flagSystemOverride;
 			$template->flags = 0;
-			$this->message("Removing template: $template->name"); 
-			$this->templates->delete($template); 
+			$this->message("Removing template: $template->name");
+			$this->templates->delete($template);
 		}
 
-		$fieldgroup = $this->fieldgroups->get(self::templateName); 
-		if($fieldgroup) { 
-			$this->message("Removing fieldgroup: $fieldgroup"); 
-			$this->fieldgroups->delete($fieldgroup); 
+		$fieldgroup = $this->fieldgroups->get(self::templateName);
+		if($fieldgroup) {
+			$this->message("Removing fieldgroup: $fieldgroup");
+			$this->fieldgroups->delete($fieldgroup);
 		}
 
 		foreach(array(self::fieldNameUser, self::fieldNameEdit, self::fieldNameView, self::fieldNameAdd) as $name) {
-			$field = $this->fields->get($name); 
-			if(!$field) continue; 
-			$field->flags = Field::flagSystemOverride; 
+			$field = $this->fields->get($name);
+			if(!$field) continue;
+			$field->flags = Field::flagSystemOverride;
 			$field->flags = 0;
-			$this->message("Removing field: $name"); 
-			try { 
-				$this->wire('fields')->delete($field); 
+			$this->message("Removing field: $name");
+			try {
+				$this->wire('fields')->delete($field);
 			} catch(Exception $e) {
-				$this->error($e->getMessage()); 
+				$this->error($e->getMessage());
 			}
-		}
-		
-		try {
-			foreach(array(self::tableNameView, self::tableNameEdit, self::tableNameAdd) as $t) {
-				$this->wire('database')->exec("DROP TABLE $t"); 
-				$this->message("Dropped table: $t"); 
-			}
-		} catch(Exception $e) {
-			$this->error($e->getMessage()); 
 		}
 
-		$this->wire(self::apiVarName, null); 
+		try {
+			foreach(array(self::tableNameView, self::tableNameEdit, self::tableNameAdd) as $t) {
+				$this->wire('database')->exec("DROP TABLE $t");
+				$this->message("Dropped table: $t");
+			}
+		} catch(Exception $e) {
+			$this->error($e->getMessage());
+		}
+
+		$this->wire(self::apiVarName, null);
 	}
 
 	public static function getModuleConfigInputfields(array $data) {
 		$form = new InputfieldWrapper();
-		if(wire('modules')->isInstalled('FieldtypeMultiplier')) {		
-			$field = wire('fields')->get(self::fieldNameEdit); 
+		if(wire('modules')->isInstalled('FieldtypeMultiplier')) {
+			$field = wire('fields')->get(self::fieldNameEdit);
 			if($field && $field->type == 'FieldtypeMultiplier') {
-				$f = wire('modules')->get('InputfieldInteger'); 
-				$f->attr('name', 'maxMultiplier'); 
-				$f->label = __('Multiplier quantity'); 
+				$f = wire('modules')->get('InputfieldInteger');
+				$f->attr('name', 'maxMultiplier');
+				$f->label = __('Multiplier quantity');
 				$f->description = __('We have detected that you have the Multiplier ProField installed! This enables you to maintain OR conditions (sections) for your selectors that define dynamic roles, giving them greater flexibility. However, it does consume some overhead (speed) when defining Dynamic Roles.') . ' '; // Multiplier description1
 				$f->description .= __('Specify the max number of OR conditions you want to allow, or 1 to disable. If you want to use this feature, we recommend starting small (like 2 or 3) and increasing it when/if your needs justify it.'); // Multiplier description2
-				$f->attr('value', isset($data['maxMultiplier']) ? (int) $data['maxMultiplier'] : self::maxMultiplier); 
-				$form->add($f); 
+				$f->attr('value', isset($data['maxMultiplier']) ? (int) $data['maxMultiplier'] : self::maxMultiplier);
+				$form->add($f);
 			}
 		}
-		return $form; 
+		return $form;
 	}
 
 	/**
@@ -935,7 +937,7 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 	 */
 	public function debugLog($str) {
 		if(!$this->wire('config')->debug) return;
-		$this->wire('log')->save(self::debugLogName, $str); 
+		$this->wire('log')->save(self::debugLogName, $str);
 	}
 
 
