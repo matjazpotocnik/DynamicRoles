@@ -175,8 +175,9 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 	 *
 	 */
 	public function hookAfterPageFinderGetQuery($event) {
-
-		if(!count($this->wire('user')->get(self::fieldName))) return;
+		$droles = $this->wire('user')->get(self::fieldName); //MP
+		if($droles === null) return; //MP
+		if(!count($droles)) return; //MP
 		$query = $event->return;
 		$tableView = self::tableNameView;
 		$tableEdit = self::tableNameEdit;
@@ -184,7 +185,7 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 		$ids = array();
 		$idsEdit = array();
 
-		foreach($this->wire('user')->get(self::fieldName) as $drole) {
+		foreach($droles as $drole) { //MP
 			$ids[] = (int) $drole->id;
 			if($drole->hasEditPermission()) $idsEdit[] = (int) $drole->id;
 		}
@@ -209,7 +210,9 @@ class DynamicRoleSupport extends WireData implements Module, ConfigurableModule 
 	 *
 	 */
 	public function hookBeforePageFinderGetQueryAllowedTemplatesWhere($event) {
-		if(!count($this->wire('user')->get(self::fieldName))) return;
+		$droles = $this->wire('user')->get(self::fieldName); //MP
+		if($droles === null) return; //MP
+		if(!count($droles)) return; //MP
 		$query = $event->arguments(0);
 		$where = $event->arguments(1);
 		$tableView = self::tableNameView;
